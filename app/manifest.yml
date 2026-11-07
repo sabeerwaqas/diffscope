@@ -1,0 +1,23 @@
+modules:
+  bitbucket:workspaceGlobalPage:
+    - key: diffscope-hello-world-workspace-global-page
+      resource: main
+      resolver:
+        function: resolver
+      title: DiffScope
+  function:
+    - key: resolver
+      handler: index.handler
+resources:
+  - key: main
+    path: static/hello-world/build
+permissions:
+  scopes:
+    - read:pullrequest:bitbucket
+    - read:repository:bitbucket
+app:
+  runtime:
+    name: nodejs24.x
+    memoryMB: 256
+    architecture: arm64
+  id: ari:cloud:ecosystem::app/76b8b369-5142-42e4-a648-b17c1ee7b7c1

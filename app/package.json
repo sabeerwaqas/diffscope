@@ -1,0 +1,19 @@
+{
+  "name": "bitbucket-workspace-global-page-custom-ui",
+  "version": "1.0.5-next.0",
+  "main": "src/index.ts",
+  "license": "MIT",
+  "private": true,
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@forge/api": "^8.4.0",
+    "@forge/resolver": "^2.0.2"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}

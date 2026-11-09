@@ -158,6 +158,59 @@ describe('DiffScope UI', () => {
     });
   });
 
+  it('shows confirmed artifact evidence and unmapped files for a loaded pull request', async () => {
+    mockInvoke
+      .mockResolvedValueOnce({
+        body: {
+          id: 21,
+          title: 'Update checkout',
+          state: 'OPEN',
+          author: 'A. Developer',
+          sourceBranch: 'feature/checkout',
+          destinationBranch: 'main',
+          sourceCommit: 'abc123456789',
+          destinationCommit: 'def123456789',
+          url: '',
+          files: [
+            { path: 'src/billing/checkout.ts', status: 'modified', linesAdded: 4, linesRemoved: 2 },
+            { path: 'src/billing/unknown.ts', status: 'added', linesAdded: 3, linesRemoved: 0 },
+          ],
+          filesTruncated: false,
+        },
+      })
+      .mockResolvedValueOnce({
+        body: [{
+          repositoryId: 'workspace-uuid:repo',
+          path: 'src/billing/checkout.ts',
+          relationship: 'implements',
+          artifact: {
+            product: 'jira',
+            id: 'PAY-42',
+            title: 'Support checkout',
+            url: 'https://example.atlassian.net/browse/PAY-42',
+          },
+        }],
+      });
+
+    render(<App />);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Workspace slug' }), {
+      target: { value: 'team' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Repository slug' }), {
+      target: { value: 'repo' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'PR number' }), {
+      target: { value: '21' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Load pull request' }));
+    expect(await screen.findByText('Update checkout')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load saved mappings' }));
+    expect(await screen.findByText('Support checkout')).toBeTruthy();
+    expect(screen.getByText('src/billing/unknown.ts')).toBeTruthy();
+    expect(screen.getByText('1 confirmed mappings')).toBeTruthy();
+  });
+
   it('keeps Jira and Confluence examples explicitly in local demo mode', async () => {
     window.history.replaceState({}, '', '/?demo=1');
 

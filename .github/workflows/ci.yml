@@ -48,6 +48,10 @@ jobs:
         working-directory: app/static/hello-world
         run: npm run build
 
+      - name: Disable Forge CLI usage analytics prompt
+        working-directory: app
+        run: npx --yes @forge/cli@15.0.0 settings set usage-analytics false
+
       - name: Lint Forge manifest
         working-directory: app
         run: npx --yes @forge/cli@15.0.0 lint

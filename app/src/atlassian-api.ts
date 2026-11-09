@@ -1,11 +1,15 @@
-import api, { route, type Response as ForgeResponse } from '@forge/api';
+import api, { assumeTrustedRoute, route, type Response as ForgeResponse } from '@forge/api';
 import type {
   PullRequestInput,
   PullRequestOverview,
+  PullRequestFile,
 } from './api-contracts';
 import { validatePullRequestInput } from './api-validation';
 
 type JsonRecord = Record<string, unknown>;
+
+const MAX_DIFFSTAT_PAGES = 100;
+const BITBUCKET_API_ORIGIN = 'https://api.bitbucket.org';
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -79,22 +83,40 @@ async function readJsonResponse(
   return payload;
 }
 
-function mapPullRequest(
-  payload: JsonRecord,
-  diffstat: JsonRecord,
-): PullRequestOverview {
-  const source = recordAt(payload, 'source');
-  const destination = recordAt(payload, 'destination');
-  const sourceCommit = stringAt(recordAt(source, 'commit'), 'hash');
-  const destinationCommit = stringAt(recordAt(destination, 'commit'), 'hash');
-  if (!sourceCommit || !destinationCommit) {
-    throw new Error(
-      'Bitbucket did not return both pull request commit hashes, so changed files could not be loaded.',
-    );
+function validateDiffstatNextUrl(
+  value: string,
+  workspace: string,
+  repository: string,
+  commitRange: string,
+): string {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error('Bitbucket returned an invalid changed-file pagination URL.');
   }
 
-  const rawFiles = Array.isArray(diffstat.values) ? diffstat.values : [];
-  const files = rawFiles.flatMap((entry) => {
+  const expectedPath =
+    `/2.0/repositories/${workspace}/${repository}/diffstat/${commitRange}`;
+
+  if (
+    url.origin !== BITBUCKET_API_ORIGIN ||
+    url.username ||
+    url.password ||
+    url.pathname !== expectedPath
+  ) {
+    throw new Error('Bitbucket returned an unexpected changed-file pagination URL.');
+  }
+
+  return url.href;
+}
+
+function mapDiffstatFiles(payload: JsonRecord): PullRequestFile[] {
+  if (!Array.isArray(payload.values)) {
+    throw new Error('Bitbucket returned an unexpected changed-file page.');
+  }
+
+  return payload.values.flatMap((entry) => {
     if (!isRecord(entry)) {
       return [];
     }
@@ -111,10 +133,72 @@ function mapPullRequest(
       linesRemoved: numberAt(entry, 'lines_removed'),
     }];
   });
+}
+
+async function readAllDiffstatPages(
+  firstPage: JsonRecord,
+  workspace: string,
+  repository: string,
+  commitRange: string,
+): Promise<{ files: PullRequestFile[]; filesTruncated: boolean }> {
+  const filesByPath = new Map<string, PullRequestFile>();
+  const visitedUrls = new Set<string>();
+  let page = firstPage;
+  let pageCount = 0;
+
+  while (true) {
+    pageCount += 1;
+    for (const file of mapDiffstatFiles(page)) {
+      filesByPath.set(file.path, file);
+    }
+
+    const next = stringAt(page, 'next');
+    if (!next) {
+      return { files: [...filesByPath.values()], filesTruncated: false };
+    }
+
+    if (pageCount >= MAX_DIFFSTAT_PAGES) {
+      return { files: [...filesByPath.values()], filesTruncated: true };
+    }
+
+    const safeNextUrl = validateDiffstatNextUrl(
+      next,
+      workspace,
+      repository,
+      commitRange,
+    );
+    if (visitedUrls.has(safeNextUrl)) {
+      throw new Error('Bitbucket returned a repeated changed-file pagination URL.');
+    }
+    visitedUrls.add(safeNextUrl);
+
+    // Bitbucket's next links are generated URLs. Validate the origin and exact
+    // diffstat path above before using assumeTrustedRoute; routeFromAbsolute can
+    // reject Bitbucket's slug-based next links in Forge.
+    const nextResponse = await api.asUser().requestBitbucket(
+      assumeTrustedRoute(safeNextUrl),
+    );
+    page = await readJsonResponse(nextResponse, 'Bitbucket changed-file list');
+  }
+}
+
+function mapPullRequest(
+  payload: JsonRecord,
+  files: PullRequestFile[],
+  filesTruncated: boolean,
+): PullRequestOverview {
+  const source = recordAt(payload, 'source');
+  const destination = recordAt(payload, 'destination');
+  const sourceCommit = stringAt(recordAt(source, 'commit'), 'hash');
+  const destinationCommit = stringAt(recordAt(destination, 'commit'), 'hash');
+  if (!sourceCommit || !destinationCommit) {
+    throw new Error(
+      'Bitbucket did not return both pull request commit hashes, so changed files could not be loaded.',
+    );
+  }
 
   const links = recordAt(payload, 'links');
   const htmlLink = safeHttpsUrl(stringAt(recordAt(links, 'html'), 'href'));
-  const next = stringAt(diffstat, 'next');
 
   return {
     id: numberAt(payload, 'id'),
@@ -131,7 +215,7 @@ function mapPullRequest(
     destinationCommit,
     url: htmlLink,
     files,
-    filesTruncated: Boolean(next),
+    filesTruncated,
   };
 }
 
@@ -157,11 +241,18 @@ export async function getPullRequestOverview(
   }
 
   const commitRange = `${sourceCommit}..${destinationCommit}`;
-  const diffstat = await readJsonResponse(
+  const firstDiffstatPage = await readJsonResponse(
     await api.asUser().requestBitbucket(
       route`/2.0/repositories/${workspace}/${repository}/diffstat/${commitRange}?topic=true&pagelen=500`,
     ),
     'Bitbucket changed-file list',
   );
-  return mapPullRequest(pullRequest, diffstat);
+  const { files, filesTruncated } = await readAllDiffstatPages(
+    firstDiffstatPage,
+    workspace,
+    repository,
+    commitRange,
+  );
+
+  return mapPullRequest(pullRequest, files, filesTruncated);
 }

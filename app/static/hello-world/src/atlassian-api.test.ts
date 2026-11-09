@@ -94,7 +94,7 @@ describe('authenticated Bitbucket API function', () => {
       workspace: 'team',
       repository: 'repo',
       pullRequestId: '21',
-    });
+    }, { workspaceId: 'workspace-uuid' });
 
     expect(result).toMatchObject({
       title: 'Update API contract',
@@ -118,11 +118,11 @@ describe('authenticated Bitbucket API function', () => {
     });
     expect(mocks.requestBitbucket).toHaveBeenNthCalledWith(
       1,
-      '/2.0/repositories/team/repo/pullrequests/21',
+      '/2.0/repositories/workspace-uuid/repo/pullrequests/21',
     );
     expect(mocks.requestBitbucket).toHaveBeenNthCalledWith(
       2,
-      '/2.0/repositories/team/repo/diffstat/abc123456789..def123456789?topic=true&pagelen=500',
+      '/2.0/repositories/workspace-uuid/repo/diffstat/abc123456789..def123456789?topic=true&pagelen=500',
     );
     expect(mocks.requestBitbucket).toHaveBeenNthCalledWith(3, nextUrl);
   });
@@ -140,10 +140,19 @@ describe('authenticated Bitbucket API function', () => {
         workspace: 'team',
         repository: 'repo',
         pullRequestId: '21',
-      }),
+      }, { workspaceId: 'workspace-uuid' }),
     ).rejects.toThrow('Bitbucket returned an unexpected changed-file pagination URL.');
 
     expect(mocks.requestBitbucket).toHaveBeenCalledTimes(2);
+  });
+
+  it('requires the trusted workspace ID from Forge context', async () => {
+    await expect(getPullRequestOverview({
+      workspace: 'team',
+      repository: 'repo',
+      pullRequestId: '21',
+    }, {})).rejects.toThrow('could not identify the Bitbucket workspace');
+    expect(mocks.requestBitbucket).not.toHaveBeenCalled();
   });
 
   it('reports product access failures and validates input before requests', async () => {

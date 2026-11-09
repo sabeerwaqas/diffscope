@@ -27,6 +27,7 @@ type MappingInput = {
 };
 
 const MAX_MAPPINGS_PER_REPOSITORY = 500;
+const MAX_STORAGE_BYTES = 200 * 1024;
 const MAX_PATH_LENGTH = 1024;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -189,6 +190,10 @@ export async function saveRepositoryMapping(
       throw new Error(`A repository can have at most ${MAX_MAPPINGS_PER_REPOSITORY} explicit mappings.`);
     }
     mappings.push(mapping);
+  }
+
+  if (JSON.stringify(mappings).length > MAX_STORAGE_BYTES) {
+    throw new Error('Repository mappings exceed the safe storage size. Remove unused mappings before adding more.');
   }
 
   await kvs.set(key, mappings);

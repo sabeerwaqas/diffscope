@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   analyzeMappedImpact,
+  calculateMappingCoverage,
   type PathArtifactMapping,
 } from '../../../src/impact-analysis';
 
@@ -112,5 +113,29 @@ describe('analyzeMappedImpact', () => {
         },
       ]),
     ).toThrow(/Conflicting artifact details/);
+  });
+});
+
+describe('calculateMappingCoverage', () => {
+  it('calculates coverage using distinct changed paths', () => {
+    expect(calculateMappingCoverage(
+      ['src/a.ts', 'src/a.ts', 'src/b.ts'],
+      ['src/b.ts'],
+    )).toBe(50);
+  });
+
+  it('returns 100 when every distinct changed path is mapped', () => {
+    expect(calculateMappingCoverage(['src/a.ts', 'src/b.ts'], [])).toBe(100);
+  });
+
+  it('returns 0 when no changed paths are mapped', () => {
+    expect(calculateMappingCoverage(
+      ['src/a.ts', 'src/b.ts'],
+      ['src/a.ts', 'src/b.ts'],
+    )).toBe(0);
+  });
+
+  it('returns null when there are no changed paths', () => {
+    expect(calculateMappingCoverage([], [])).toBeNull();
   });
 });

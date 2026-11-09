@@ -76,6 +76,88 @@ describe('DiffScope UI', () => {
     });
   });
 
+  it('loads and deletes repository mappings through Forge resolvers', async () => {
+    const mapping = {
+      repositoryId: 'workspace-uuid:repo',
+      path: 'src/billing/checkout.ts',
+      relationship: 'implements',
+      artifact: {
+        product: 'jira',
+        id: 'PAY-42',
+        title: 'Support checkout',
+        url: 'https://example.atlassian.net/browse/PAY-42',
+      },
+    };
+    mockInvoke
+      .mockResolvedValueOnce({ body: [mapping] })
+      .mockResolvedValueOnce({ body: [] });
+
+    render(<App />);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Repository slug' }), {
+      target: { value: 'repo' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Load saved mappings' }));
+
+    expect(await screen.findByText('src/billing/checkout.ts')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    expect(await screen.findByText('No mappings saved for this repository yet.')).toBeTruthy();
+    expect(mockInvoke).toHaveBeenNthCalledWith(1, 'listRepositoryMappings', {
+      repository: 'repo',
+    });
+    expect(mockInvoke).toHaveBeenNthCalledWith(2, 'deleteRepositoryMapping', {
+      repository: 'repo',
+      mapping: {
+        path: mapping.path,
+        relationship: mapping.relationship,
+        artifact: mapping.artifact,
+      },
+    });
+  });
+
+  it('saves an explicit repository mapping', async () => {
+    const mapping = {
+      repositoryId: 'workspace-uuid:repo',
+      path: 'src/billing/checkout.ts',
+      relationship: 'implements',
+      artifact: {
+        product: 'jira',
+        id: 'PAY-42',
+        title: 'Support checkout',
+        url: 'https://example.atlassian.net/browse/PAY-42',
+      },
+    };
+    mockInvoke.mockResolvedValueOnce({ body: [mapping] });
+
+    render(<App />);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Repository slug' }), {
+      target: { value: 'repo' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('src/billing/checkout.ts'), {
+      target: { value: mapping.path },
+    });
+    fireEvent.change(screen.getByPlaceholderText('PAY-42'), {
+      target: { value: 'PAY-42' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Support checkout'), {
+      target: { value: 'Support checkout' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('https://...'), {
+      target: { value: mapping.artifact.url },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save mapping' }));
+
+    expect(await screen.findByText('src/billing/checkout.ts')).toBeTruthy();
+    expect(mockInvoke).toHaveBeenCalledWith('saveRepositoryMapping', {
+      repository: 'repo',
+      mapping: {
+        path: mapping.path,
+        relationship: 'implements',
+        artifact: mapping.artifact,
+      },
+    });
+  });
+
   it('keeps Jira and Confluence examples explicitly in local demo mode', async () => {
     window.history.replaceState({}, '', '/?demo=1');
 

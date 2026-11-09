@@ -29,9 +29,12 @@ resource path unchanged. The frontend is built locally into
 **Status:** Implemented locally.
 
 The app uses the user-context pull-request and diffstat APIs. Bitbucket
-requests use the trusted `workspaceId` supplied by Forge resolver context;
-the workspace slug entered in the UI is used only to validate Bitbucket's
-returned pagination path. Its manifest
+requests use the trusted `workspaceId` supplied by Forge resolver context and
+resolve the repository UUID before fetching PR data. Bitbucket pagination
+links use workspace/repository slugs; DiffScope validates the returned origin
+and resource path, then rebuilds the query using trusted IDs. The workspace
+slug entered in the UI is used only to validate the returned pagination path.
+Its manifest
 requests only `read:pullrequest:bitbucket` and `read:repository:bitbucket`.
 Forge lint rejects combining Bitbucket workspace scopes with Jira or
 Confluence site scopes. Jira/Confluence API access is deferred until a

@@ -50,7 +50,7 @@ export function validatePullRequestInput(
     repository: validateRepositorySlug(inputString(input, 'repository')),
     pullRequestId: requireMatch(
       inputString(input, 'pullRequestId'),
-      /^[1-9]\\d{0,9}$/,
+      /^[1-9]\d{0,9}$/,
       'Pull request ID must be a positive number.',
     ),
   };

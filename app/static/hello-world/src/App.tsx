@@ -517,9 +517,14 @@ function App() {
               <p className="muted">
                 Repository: <strong>{pullRequestInput.repository || 'Enter a repository slug above'}</strong>
               </p>
+              {isLocalDemo && (
+                <p className="message message--warning" role="status">
+                  Persistent mappings require an installed Forge app. Local demo mode does not write to Forge storage.
+                </p>
+              )}
               <button
                 className="button button--secondary"
-                disabled={!pullRequestInput.repository || mappingState.status === 'loading'}
+                disabled={isLocalDemo || !pullRequestInput.repository || mappingState.status === 'loading'}
                 onClick={loadMappings}
                 type="button"
               >
@@ -573,7 +578,7 @@ function App() {
                 </label>
                 <button
                   className="button button--primary"
-                  disabled={!pullRequestInput.repository || mappingState.status === 'loading'}
+                  disabled={isLocalDemo || !pullRequestInput.repository || mappingState.status === 'loading'}
                   type="submit"
                 >
                   Save mapping
@@ -590,7 +595,7 @@ function App() {
                           <span className="file-status">{mapping.relationship} · {mapping.artifact.product}</span>
                           <p className="muted">{mapping.artifact.id} — {mapping.artifact.title}</p>
                         </div>
-                        <button className="button button--secondary" type="button" onClick={() => removeMapping(mapping)}>
+                        <button className="button button--secondary" disabled={isLocalDemo} type="button" onClick={() => removeMapping(mapping)}>
                           Delete
                         </button>
                       </li>

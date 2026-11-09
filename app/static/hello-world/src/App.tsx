@@ -492,7 +492,16 @@ function App() {
                   {impactAnalysis.unmappedPaths.length > 0 ? (
                     <ul className="file-list">
                       {impactAnalysis.unmappedPaths.map((path) => (
-                        <li key={path}><code>{path}</code></li>
+                        <li key={path}>
+                          <div><code>{path}</code></div>
+                          <button
+                            className="button button--secondary"
+                            type="button"
+                            onClick={() => setMappingForm({ ...mappingForm, path })}
+                          >
+                            Create mapping
+                          </button>
+                        </li>
                       ))}
                     </ul>
                   ) : (

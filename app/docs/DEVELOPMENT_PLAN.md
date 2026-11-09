@@ -36,12 +36,18 @@
 4. Add read-only Jira and Confluence adapters after resolving the scope-family
    constraint with an approved architecture.
 5. Define normalized data models and deterministic impact analysis with
-   evidence-focused tests. Exact-path mapping analysis is implemented; the
-   broader normalized model remains pending.
+   evidence-focused tests.
+   - [x] Exact-path deterministic impact analysis.
+   - [x] Forge KVS persistence and resolver CRUD for explicit repository mappings.
+   - [x] UI for creating, listing, and deleting mappings.
+   - [x] Display confirmed mapping evidence and unmapped changed paths.
+   - [ ] Validate live Forge storage and workspace context on an installed development site.
+   - [ ] Address concurrent mapping edits before multi-user production use.
 6. Add manual refresh, then confirmed event sources, idempotent processing,
    retries, and reconciliation.
-7. [x] Build the initial PR UI and demo-only Jira/Confluence panels. Live
-   multi-product onboarding and evidence-backed impact-report screens remain.
+7. [x] Build the initial PR UI and demo-only Jira/Confluence panels.
+   - [x] Add an evidence-backed impact assessment from explicit mappings.
+   - [ ] Live multi-product onboarding remains deferred.
 8. Add a Rovo agent only if available; keep its first actions read-only and
    assessment-backed.
 9. Complete permission, tenant isolation, rate-limit, retention, and

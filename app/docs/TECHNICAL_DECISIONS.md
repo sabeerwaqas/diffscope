@@ -32,8 +32,9 @@ The app uses the user-context pull-request and diffstat APIs. Its manifest
 requests only `read:pullrequest:bitbucket` and `read:repository:bitbucket`.
 Forge lint rejects combining Bitbucket workspace scopes with Jira or
 Confluence site scopes. Jira/Confluence API access is deferred until a
-compatible multi-product architecture is selected. Storage remains deferred
-until retention requirements are established.
+compatible multi-product architecture is selected. Forge KVS is now used for minimal explicit repository mappings only. The
+storage key is namespaced by installation, workspace, and repository. Broader
+source-content retention remains deferred.
 
 ## TD-004: Do not deploy or install without a confirmed site
 

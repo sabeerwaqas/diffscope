@@ -540,7 +540,7 @@ function App() {
                     onChange={(event) => setMappingForm({ ...mappingForm, path: event.target.value })}
                   />
                 </label>
-                <div className="form-row">
+                <div className="form-row form-row--two">
                   <label>
                     <span>Relationship</span>
                     <select

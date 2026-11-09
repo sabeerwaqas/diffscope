@@ -16,6 +16,7 @@ vi.mock('@forge/api', () => ({
       (path, segment, index) => path + segment + (values[index] ?? ''),
       '',
     ),
+  assumeTrustedRoute: (value: string) => value,
 }));
 
 import { getPullRequestOverview } from '../../../src/atlassian-api';
@@ -39,30 +40,35 @@ function jsonResponse(payload: unknown, status = 200): ForgeResponse {
   };
 }
 
+const pullRequestPayload = {
+  id: 21,
+  title: 'Update API contract',
+  state: 'OPEN',
+  author: { display_name: 'A. Developer' },
+  source: {
+    branch: { name: 'feature/api' },
+    commit: { hash: 'abc123456789' },
+  },
+  destination: {
+    branch: { name: 'main' },
+    commit: { hash: 'def123456789' },
+  },
+  links: { html: { href: 'https://bitbucket.org/team/repo/pull-requests/21' } },
+};
+
 beforeEach(() => {
   mocks.requestBitbucket.mockReset();
 });
 
 describe('authenticated Bitbucket API function', () => {
-  it('loads a pull request and its changed-file summary as the current user', async () => {
+  it('retrieves all changed-file pages and marks the result complete', async () => {
+    const nextUrl =
+      'https://api.bitbucket.org/2.0/repositories/team/repo/diffstat/abc123456789..def123456789?page=2';
+
     mocks.requestBitbucket
+      .mockResolvedValueOnce(jsonResponse(pullRequestPayload))
       .mockResolvedValueOnce(jsonResponse({
-        id: 21,
-        title: 'Update API contract',
-        state: 'OPEN',
-        author: { display_name: 'A. Developer' },
-        source: {
-          branch: { name: 'feature/api' },
-          commit: { hash: 'abc123456789' },
-        },
-        destination: {
-          branch: { name: 'main' },
-          commit: { hash: 'def123456789' },
-        },
-        links: { html: { href: 'https://bitbucket.org/team/repo/pull-requests/21' } },
-      }))
-      .mockResolvedValueOnce(jsonResponse({
-        next: 'https://api.bitbucket.org/2.0/next-page',
+        next: nextUrl,
         values: [
           {
             status: 'modified',
@@ -70,6 +76,16 @@ describe('authenticated Bitbucket API function', () => {
             lines_removed: 2,
             old: { path: 'src/api.ts' },
             new: { path: 'src/api.ts' },
+          },
+        ],
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        values: [
+          {
+            status: 'added',
+            lines_added: 12,
+            lines_removed: 0,
+            new: { path: 'src/new-api.ts' },
           },
         ],
       }));
@@ -91,8 +107,14 @@ describe('authenticated Bitbucket API function', () => {
           linesAdded: 4,
           linesRemoved: 2,
         },
+        {
+          path: 'src/new-api.ts',
+          status: 'added',
+          linesAdded: 12,
+          linesRemoved: 0,
+        },
       ],
-      filesTruncated: true,
+      filesTruncated: false,
     });
     expect(mocks.requestBitbucket).toHaveBeenNthCalledWith(
       1,
@@ -102,6 +124,26 @@ describe('authenticated Bitbucket API function', () => {
       2,
       '/2.0/repositories/team/repo/diffstat/abc123456789..def123456789?topic=true&pagelen=500',
     );
+    expect(mocks.requestBitbucket).toHaveBeenNthCalledWith(3, nextUrl);
+  });
+
+  it('rejects pagination URLs outside the expected Bitbucket diffstat resource', async () => {
+    mocks.requestBitbucket
+      .mockResolvedValueOnce(jsonResponse(pullRequestPayload))
+      .mockResolvedValueOnce(jsonResponse({
+        next: 'https://attacker.example/steal-token',
+        values: [],
+      }));
+
+    await expect(
+      getPullRequestOverview({
+        workspace: 'team',
+        repository: 'repo',
+        pullRequestId: '21',
+      }),
+    ).rejects.toThrow('Bitbucket returned an unexpected changed-file pagination URL.');
+
+    expect(mocks.requestBitbucket).toHaveBeenCalledTimes(2);
   });
 
   it('reports product access failures and validates input before requests', async () => {

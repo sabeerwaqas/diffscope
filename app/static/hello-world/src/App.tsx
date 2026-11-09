@@ -458,7 +458,7 @@ function App() {
                 <section className="result-panel" aria-live="polite">
                   <div className="file-list-heading">
                     <h4>Impact assessment</h4>
-                    <span>{impactAnalysis.findings.length} explicit mappings</span>
+                    <span>{impactAnalysis.findings.length} {impactAnalysis.findings.length === 1 ? 'explicit mapping' : 'explicit mappings'}</span>
                   </div>
                   {impactAnalysis.findings.length > 0 ? (
                     <ul className="file-list">

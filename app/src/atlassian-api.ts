@@ -130,7 +130,7 @@ async function getRepositoryUuid(
     (entry) => isRecord(entry) && stringAt(entry, 'slug') === repositorySlug,
   );
   const uuid = stringAt(repository, 'uuid');
-  if (!/^\\{?[a-f0-9-]{36}\\}?$/i.test(uuid)) {
+  if (!/^\{?[a-f0-9-]{36}\}?$/i.test(uuid)) {
     throw new Error('Bitbucket did not return a valid repository ID for the selected repository.');
   }
   return uuid;

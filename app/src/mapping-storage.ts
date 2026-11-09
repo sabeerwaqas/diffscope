@@ -192,7 +192,7 @@ export async function saveRepositoryMapping(
     mappings.push(mapping);
   }
 
-  if (JSON.stringify(mappings).length > MAX_STORAGE_BYTES) {
+  if (new TextEncoder().encode(JSON.stringify(mappings)).byteLength > MAX_STORAGE_BYTES) {
     throw new Error('Repository mappings exceed the safe storage size. Remove unused mappings before adding more.');
   }
 

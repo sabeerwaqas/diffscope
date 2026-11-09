@@ -85,11 +85,10 @@ forge deploy -e development
 For a first-time installation:
 
 ```bash
-forge install --site https://YOUR-WORKSPACE.atlassian.net --product Bitbucket -e development
+forge install --site https://bitbucket.org/YOUR-WORKSPACE --product Bitbucket -e development
 ```
 
-Use the Bitbucket workspace URL when prompted if the CLI requests it; do not
-substitute a Jira site URL. If the app is already installed, apply the
+Use the Bitbucket workspace URL, not a Jira/Confluence `.atlassian.net` site URL. If the app is already installed, apply the
 development version with:
 
 ```bash

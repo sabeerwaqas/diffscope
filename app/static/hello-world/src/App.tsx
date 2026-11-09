@@ -7,6 +7,11 @@ import type {
   PullRequestInput,
   PullRequestOverview,
 } from '../../../src/api-contracts';
+import type {
+  ArtifactProduct,
+  PathArtifactMapping,
+  RelationshipType,
+} from '../../../src/impact-analysis';
 import './index.css';
 
 type RequestState<T> =
@@ -59,7 +64,11 @@ function isInvokeResponse<T>(
 }
 
 async function invokeResolver<T>(
-  resolver: 'getPullRequestOverview',
+  resolver:
+    | 'getPullRequestOverview'
+    | 'listRepositoryMappings'
+    | 'saveRepositoryMapping'
+    | 'deleteRepositoryMapping',
   payload: object,
 ): Promise<T> {
   const { invoke } = await import('@forge/bridge');
@@ -160,6 +169,23 @@ function App() {
     useState<RequestState<JiraIssueSummary>>({ status: 'idle' });
   const [confluenceState, setConfluenceState] =
     useState<RequestState<ConfluenceSearchResult>>({ status: 'idle' });
+  const [mappingState, setMappingState] =
+    useState<RequestState<PathArtifactMapping[]>>({ status: 'idle' });
+  const [mappingForm, setMappingForm] = useState<{
+    path: string;
+    relationship: RelationshipType;
+    product: ArtifactProduct;
+    id: string;
+    title: string;
+    url: string;
+  }>({
+    path: '',
+    relationship: 'implements',
+    product: 'jira',
+    id: '',
+    title: '',
+    url: '',
+  });
 
   async function loadPullRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -174,6 +200,73 @@ function App() {
       setPullRequestState({ status: 'success', data });
     } catch (error) {
       setPullRequestState({ status: 'error', message: messageFromError(error) });
+    }
+  }
+
+  async function loadMappings() {
+    setMappingState({ status: 'loading' });
+    try {
+      const data = await invokeResolver<PathArtifactMapping[]>(
+        'listRepositoryMappings',
+        { repository: pullRequestInput.repository },
+      );
+      setMappingState({ status: 'success', data });
+    } catch (error) {
+      setMappingState({ status: 'error', message: messageFromError(error) });
+    }
+  }
+
+  async function saveMapping(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMappingState({ status: 'loading' });
+    try {
+      const data = await invokeResolver<PathArtifactMapping[]>(
+        'saveRepositoryMapping',
+        {
+          repository: pullRequestInput.repository,
+          mapping: {
+            path: mappingForm.path,
+            relationship: mappingForm.relationship,
+            artifact: {
+              product: mappingForm.product,
+              id: mappingForm.id,
+              title: mappingForm.title,
+              url: mappingForm.url,
+            },
+          },
+        },
+      );
+      setMappingState({ status: 'success', data });
+      setMappingForm({
+        path: '',
+        relationship: 'implements',
+        product: 'jira',
+        id: '',
+        title: '',
+        url: '',
+      });
+    } catch (error) {
+      setMappingState({ status: 'error', message: messageFromError(error) });
+    }
+  }
+
+  async function removeMapping(mapping: PathArtifactMapping) {
+    setMappingState({ status: 'loading' });
+    try {
+      const data = await invokeResolver<PathArtifactMapping[]>(
+        'deleteRepositoryMapping',
+        {
+          repository: pullRequestInput.repository,
+          mapping: {
+            path: mapping.path,
+            relationship: mapping.relationship,
+            artifact: mapping.artifact,
+          },
+        },
+      );
+      setMappingState({ status: 'success', data });
+    } catch (error) {
+      setMappingState({ status: 'error', message: messageFromError(error) });
     }
   }
 
@@ -356,6 +449,99 @@ function App() {
         </SectionCard>
 
         <div className="reference-column">
+          <SectionCard
+            title="Repository mappings"
+            description="Save explicit file-to-artifact relationships for this Bitbucket repository."
+          >
+            <div className="form-stack">
+              <p className="muted">
+                Repository: <strong>{pullRequestInput.repository || 'Enter a repository slug above'}</strong>
+              </p>
+              <button
+                className="button button--secondary"
+                disabled={!pullRequestInput.repository || mappingState.status === 'loading'}
+                onClick={loadMappings}
+                type="button"
+              >
+                Load saved mappings
+              </button>
+              <form className="form-stack" onSubmit={saveMapping}>
+                <label>
+                  <span>Repository-relative file path</span>
+                  <input
+                    required
+                    placeholder="src/billing/checkout.ts"
+                    value={mappingForm.path}
+                    onChange={(event) => setMappingForm({ ...mappingForm, path: event.target.value })}
+                  />
+                </label>
+                <div className="form-row">
+                  <label>
+                    <span>Relationship</span>
+                    <select
+                      value={mappingForm.relationship}
+                      onChange={(event) => setMappingForm({ ...mappingForm, relationship: event.target.value as RelationshipType })}
+                    >
+                      <option value="implements">Implements</option>
+                      <option value="documents">Documents</option>
+                      <option value="verifies">Verifies</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Artifact type</span>
+                    <select
+                      value={mappingForm.product}
+                      onChange={(event) => setMappingForm({ ...mappingForm, product: event.target.value as ArtifactProduct })}
+                    >
+                      <option value="jira">Jira issue</option>
+                      <option value="confluence">Confluence page</option>
+                      <option value="verification">Test / verification</option>
+                    </select>
+                  </label>
+                </div>
+                <label>
+                  <span>Artifact ID or key</span>
+                  <input required placeholder="PAY-42" value={mappingForm.id} onChange={(event) => setMappingForm({ ...mappingForm, id: event.target.value })} />
+                </label>
+                <label>
+                  <span>Artifact title</span>
+                  <input required placeholder="Support checkout" value={mappingForm.title} onChange={(event) => setMappingForm({ ...mappingForm, title: event.target.value })} />
+                </label>
+                <label>
+                  <span>Artifact URL (HTTPS)</span>
+                  <input required type="url" placeholder="https://..." value={mappingForm.url} onChange={(event) => setMappingForm({ ...mappingForm, url: event.target.value })} />
+                </label>
+                <button
+                  className="button button--primary"
+                  disabled={!pullRequestInput.repository || mappingState.status === 'loading'}
+                  type="submit"
+                >
+                  Save mapping
+                </button>
+              </form>
+              <StatusMessage state={mappingState} />
+              {mappingState.status === 'success' && (
+                mappingState.data.length > 0 ? (
+                  <ul className="file-list">
+                    {mappingState.data.map((mapping) => (
+                      <li key={`${mapping.path}:${mapping.relationship}:${mapping.artifact.product}:${mapping.artifact.id}`}>
+                        <div>
+                          <code>{mapping.path}</code>
+                          <span className="file-status">{mapping.relationship} · {mapping.artifact.product}</span>
+                          <p className="muted">{mapping.artifact.id} — {mapping.artifact.title}</p>
+                        </div>
+                        <button className="button button--secondary" type="button" onClick={() => removeMapping(mapping)}>
+                          Delete
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="empty-state">No mappings saved for this repository yet.</p>
+                )
+              )}
+            </div>
+          </SectionCard>
           <SectionCard
             title="Jira issue"
             description={

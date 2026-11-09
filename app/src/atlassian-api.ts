@@ -1,6 +1,5 @@
 import api, { route, type Response as ForgeResponse } from '@forge/api';
 import type {
-  PullRequestInput,
   PullRequestOverview,
   PullRequestFile,
 } from './api-contracts';

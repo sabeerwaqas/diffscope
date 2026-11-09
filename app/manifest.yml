@@ -15,6 +15,7 @@ permissions:
   scopes:
     - read:pullrequest:bitbucket
     - read:repository:bitbucket
+    - storage:app
 app:
   runtime:
     name: nodejs24.x

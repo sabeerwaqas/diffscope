@@ -12,7 +12,7 @@ import type {
   PathArtifactMapping,
   RelationshipType,
 } from '../../../src/impact-analysis';
-import { analyzeMappedImpact } from '../../../src/impact-analysis';
+import { analyzeMappedImpact, calculateMappingCoverage } from '../../../src/impact-analysis';
 import './index.css';
 
 type RequestState<T> =
@@ -461,9 +461,15 @@ function App() {
                     <span>{impactAnalysis.findings.length} {impactAnalysis.findings.length === 1 ? 'explicit mapping' : 'explicit mappings'}</span>
                   </div>
                   <p className="muted">
-                    Mapping coverage: {pullRequestState.data.files.length === 0
+                    Mapping coverage: {calculateMappingCoverage(
+                      pullRequestState.data.files.map((file) => file.path),
+                      impactAnalysis.unmappedPaths,
+                    ) === null
                       ? 'Not applicable (no changed files)'
-                      : `${Math.round(((pullRequestState.data.files.length - impactAnalysis.unmappedPaths.length) / pullRequestState.data.files.length) * 100)}% of returned changed files have at least one explicit mapping`}
+                      : `${calculateMappingCoverage(
+                          pullRequestState.data.files.map((file) => file.path),
+                          impactAnalysis.unmappedPaths,
+                        )}% of distinct changed files have at least one explicit mapping`}
                     {pullRequestState.data.filesTruncated ? ' · Incomplete file list; coverage is only a lower-confidence snapshot.' : ''}
                   </p>
                   {impactAnalysis.findings.length > 0 ? (

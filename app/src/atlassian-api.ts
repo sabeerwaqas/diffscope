@@ -219,14 +219,23 @@ function mapPullRequest(
   };
 }
 
+type BitbucketResolverContext = {
+  workspaceId?: string;
+};
+
 export async function getPullRequestOverview(
   input: unknown,
+  context: BitbucketResolverContext,
 ): Promise<PullRequestOverview> {
   const { workspace, repository, pullRequestId } =
     validatePullRequestInput(input);
+  const workspaceId = context.workspaceId;
+  if (!workspaceId) {
+    throw new Error('DiffScope could not identify the Bitbucket workspace from Forge context.');
+  }
   const pullRequest = await readJsonResponse(
     await api.asUser().requestBitbucket(
-      route`/2.0/repositories/${workspace}/${repository}/pullrequests/${pullRequestId}`,
+      route`/2.0/repositories/${workspaceId}/${repository}/pullrequests/${pullRequestId}`,
     ),
     'Bitbucket pull request',
   );
@@ -243,7 +252,7 @@ export async function getPullRequestOverview(
   const commitRange = `${sourceCommit}..${destinationCommit}`;
   const firstDiffstatPage = await readJsonResponse(
     await api.asUser().requestBitbucket(
-      route`/2.0/repositories/${workspace}/${repository}/diffstat/${commitRange}?topic=true&pagelen=500`,
+      route`/2.0/repositories/${workspaceId}/${repository}/diffstat/${commitRange}?topic=true&pagelen=500`,
     ),
     'Bitbucket changed-file list',
   );

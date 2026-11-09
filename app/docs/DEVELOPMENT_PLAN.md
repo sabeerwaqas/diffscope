@@ -30,7 +30,7 @@
 2. Add Vitest and focused tests; add CI checks for type-checking, lint, and
    frontend build.
    - [x] Vitest and focused UI/domain tests.
-   - [x] Add GitHub Actions CI for backend type-checking, frontend tests/build, and Forge manifest lint.
+   - [x] Add GitHub Actions CI for backend type-checking, frontend tests, and Custom UI build. Forge CLI lint remains a local/pre-deploy check because its analytics-consent prompt is not reliable in this non-interactive runner.
 3. [x] Implement the initial read-only Bitbucket pull-request and changed-file
    retrieval surface. Repository selection and live testing remain.
 4. Add read-only Jira and Confluence adapters after resolving the scope-family

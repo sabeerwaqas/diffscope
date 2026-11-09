@@ -26,6 +26,17 @@ function requireMatch(value: string, pattern: RegExp, message: string): string {
   return normalized;
 }
 
+export function validateRepositorySlug(value: unknown): string {
+  if (typeof value !== 'string') {
+    throw new TypeError('Repository slug must be text.');
+  }
+  return requireMatch(
+    value,
+    /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/,
+    'Enter a valid Bitbucket repository slug.',
+  );
+}
+
 export function validatePullRequestInput(
   value: unknown,
 ): PullRequestInput {
@@ -36,14 +47,10 @@ export function validatePullRequestInput(
       /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/,
       'Enter a valid Bitbucket workspace slug.',
     ),
-    repository: requireMatch(
-      inputString(input, 'repository'),
-      /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/,
-      'Enter a valid Bitbucket repository slug.',
-    ),
+    repository: validateRepositorySlug(inputString(input, 'repository')),
     pullRequestId: requireMatch(
       inputString(input, 'pullRequestId'),
-      /^[1-9]\d{0,9}$/,
+      /^[1-9]\\d{0,9}$/,
       'Pull request ID must be a positive number.',
     ),
   };

@@ -108,3 +108,27 @@ export function analyzeMappedImpact(
 
   return { findings, unmappedPaths };
 }
+
+/**
+ * Returns the percentage of distinct changed paths covered by at least one
+ * explicit mapping. Returns null when there are no changed paths.
+ */
+export function calculateMappingCoverage(
+  changedPaths: string[],
+  unmappedPaths: string[],
+): number | null {
+  const uniqueChangedPaths = new Set(changedPaths);
+  if (uniqueChangedPaths.size === 0) {
+    return null;
+  }
+
+  const uniqueUnmappedPaths = new Set(unmappedPaths);
+  let mappedCount = 0;
+  for (const path of uniqueChangedPaths) {
+    if (!uniqueUnmappedPaths.has(path)) {
+      mappedCount += 1;
+    }
+  }
+
+  return Math.round((mappedCount / uniqueChangedPaths.size) * 100);
+}

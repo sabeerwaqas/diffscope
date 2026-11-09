@@ -12,6 +12,7 @@ import type {
   PathArtifactMapping,
   RelationshipType,
 } from '../../../src/impact-analysis';
+import { analyzeMappedImpact } from '../../../src/impact-analysis';
 import './index.css';
 
 type RequestState<T> =
@@ -171,6 +172,14 @@ function App() {
     useState<RequestState<ConfluenceSearchResult>>({ status: 'idle' });
   const [mappingState, setMappingState] =
     useState<RequestState<PathArtifactMapping[]>>({ status: 'idle' });
+  const impactAnalysis =
+    pullRequestState.status === 'success' && mappingState.status === 'success'
+      ? analyzeMappedImpact(
+          mappingState.data[0]?.repositoryId ?? '',
+          pullRequestState.data.files.map((file) => file.path),
+          mappingState.data,
+        )
+      : null;
   const [mappingForm, setMappingForm] = useState<{
     path: string;
     relationship: RelationshipType;
@@ -430,9 +439,49 @@ function App() {
               )}
               {pullRequestState.data.filesTruncated && (
                 <p className="message message--warning">
-                  The API returned another page of changed files. Showing the
-                  first page only.
+                  The pagination safety limit was reached. Some changed files
+                  may be missing; treat this assessment as incomplete.
                 </p>
+              )}
+              {impactAnalysis && (
+                <section className="result-panel" aria-live="polite">
+                  <div className="file-list-heading">
+                    <h4>Impact assessment</h4>
+                    <span>{impactAnalysis.findings.length} confirmed mappings</span>
+                  </div>
+                  {impactAnalysis.findings.length > 0 ? (
+                    <ul className="file-list">
+                      {impactAnalysis.findings.map((finding) => (
+                        <li key={`${finding.artifact.product}:${finding.artifact.id}:${finding.relationship}`}>
+                          <div>
+                            <strong>{finding.artifact.title}</strong>
+                            <span className="file-status">{finding.relationship} · explicit mapping</span>
+                            <p className="muted">{finding.artifact.product}:{finding.artifact.id}</p>
+                            <p className="muted">Evidence: {finding.changedPaths.join(', ')}</p>
+                            <a className="text-link" href={finding.artifact.url} rel="noreferrer" target="_blank">
+                              Open artifact ↗
+                            </a>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="empty-state">No changed files have explicit artifact mappings.</p>
+                  )}
+                  <div className="file-list-heading">
+                    <h4>Unmapped changed files</h4>
+                    <span>{impactAnalysis.unmappedPaths.length}</span>
+                  </div>
+                  {impactAnalysis.unmappedPaths.length > 0 ? (
+                    <ul className="file-list">
+                      {impactAnalysis.unmappedPaths.map((path) => (
+                        <li key={path}><code>{path}</code></li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="empty-state">Every changed file has at least one explicit mapping.</p>
+                  )}
+                </section>
               )}
               {pullRequestState.data.url && (
                 <a

@@ -9,8 +9,8 @@ import {
 const resolver = new Resolver();
 
 resolver.define('getText', () => 'Hello, world!');
-resolver.define('getPullRequestOverview', ({ payload }) =>
-  getPullRequestOverview(payload),
+resolver.define('getPullRequestOverview', ({ payload, context }) =>
+  getPullRequestOverview(payload, context),
 );
 resolver.define('listRepositoryMappings', ({ payload, context }) => {
   if (typeof payload !== 'object' || payload === null || !('repository' in payload)) {

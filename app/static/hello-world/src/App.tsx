@@ -350,10 +350,14 @@ function App() {
                   required
                   value={pullRequestInput.workspace}
                   onChange={(event) =>
-                    setPullRequestInput({
-                      ...pullRequestInput,
-                      workspace: event.target.value,
-                    })
+                    {
+                      setPullRequestInput({
+                        ...pullRequestInput,
+                        workspace: event.target.value,
+                      });
+                      setPullRequestState({ status: 'idle' });
+                      setMappingState({ status: 'idle' });
+                    }
                   }
                 />
               </label>
@@ -366,10 +370,14 @@ function App() {
                   required
                   value={pullRequestInput.repository}
                   onChange={(event) =>
-                    setPullRequestInput({
-                      ...pullRequestInput,
-                      repository: event.target.value,
-                    })
+                    {
+                      setPullRequestInput({
+                        ...pullRequestInput,
+                        repository: event.target.value,
+                      });
+                      setPullRequestState({ status: 'idle' });
+                      setMappingState({ status: 'idle' });
+                    }
                   }
                 />
               </label>
@@ -383,10 +391,13 @@ function App() {
                   required
                   value={pullRequestInput.pullRequestId}
                   onChange={(event) =>
-                    setPullRequestInput({
-                      ...pullRequestInput,
-                      pullRequestId: event.target.value,
-                    })
+                    {
+                      setPullRequestInput({
+                        ...pullRequestInput,
+                        pullRequestId: event.target.value,
+                      });
+                      setPullRequestState({ status: 'idle' });
+                    }
                   }
                 />
               </label>

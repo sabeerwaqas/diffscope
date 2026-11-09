@@ -92,7 +92,7 @@ Use the Bitbucket workspace URL, not a Jira/Confluence `.atlassian.net` site URL
 development version with:
 
 ```bash
-forge install --upgrade --site https://YOUR-WORKSPACE.atlassian.net --product Bitbucket -e development
+forge install --upgrade --site https://bitbucket.org/YOUR-WORKSPACE --product Bitbucket -e development
 ```
 
 Confirm the installation is visible in the Bitbucket workspace and open the

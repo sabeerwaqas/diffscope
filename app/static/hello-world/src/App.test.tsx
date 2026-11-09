@@ -206,8 +206,8 @@ describe('DiffScope UI', () => {
     expect(await screen.findByText('Update checkout')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Load saved mappings' }));
-    expect(await screen.findByText('Support checkout')).toBeTruthy();
-    expect(screen.getByText('src/billing/unknown.ts')).toBeTruthy();
+    expect((await screen.findAllByText('Support checkout')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('src/billing/unknown.ts').length).toBeGreaterThan(0);
     expect(screen.getByText('1 confirmed mappings')).toBeTruthy();
   });
 

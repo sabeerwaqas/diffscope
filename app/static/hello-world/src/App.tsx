@@ -460,6 +460,12 @@ function App() {
                     <h4>Impact assessment</h4>
                     <span>{impactAnalysis.findings.length} {impactAnalysis.findings.length === 1 ? 'explicit mapping' : 'explicit mappings'}</span>
                   </div>
+                  <p className="muted">
+                    Mapping coverage: {pullRequestState.data.files.length === 0
+                      ? 'Not applicable (no changed files)'
+                      : `${Math.round(((pullRequestState.data.files.length - impactAnalysis.unmappedPaths.length) / pullRequestState.data.files.length) * 100)}% of returned changed files have at least one explicit mapping`}
+                    {pullRequestState.data.filesTruncated ? ' · Incomplete file list; coverage is only a lower-confidence snapshot.' : ''}
+                  </p>
                   {impactAnalysis.findings.length > 0 ? (
                     <ul className="file-list">
                       {impactAnalysis.findings.map((finding) => (

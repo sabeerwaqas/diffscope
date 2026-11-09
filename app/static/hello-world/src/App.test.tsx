@@ -208,7 +208,7 @@ describe('DiffScope UI', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Load saved mappings' }));
     expect((await screen.findAllByText('Support checkout')).length).toBeGreaterThan(0);
     expect(screen.getAllByText('src/billing/unknown.ts').length).toBeGreaterThan(0);
-    expect(screen.getByText('1 explicit mappings')).toBeTruthy();
+    expect(screen.getByText('1 explicit mapping')).toBeTruthy();
   });
 
   it('keeps Jira and Confluence examples explicitly in local demo mode', async () => {

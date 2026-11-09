@@ -30,7 +30,7 @@
 2. Add Vitest and focused tests; add CI checks for type-checking, lint, and
    frontend build.
    - [x] Vitest and focused UI/domain tests.
-   - [ ] CI workflow (deferred; this workspace has no Git repository).
+   - [x] Add GitHub Actions CI for backend type-checking, frontend tests/build, and Forge manifest lint.
 3. [x] Implement the initial read-only Bitbucket pull-request and changed-file
    retrieval surface. Repository selection and live testing remain.
 4. Add read-only Jira and Confluence adapters after resolving the scope-family

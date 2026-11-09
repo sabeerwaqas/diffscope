@@ -39,6 +39,7 @@
    evidence-focused tests.
    - [x] Exact-path deterministic impact analysis.
    - [x] Forge KVS persistence and resolver CRUD for explicit repository mappings.
+   - [x] Derive Bitbucket workspace and repository IDs from trusted Forge context/API responses.
    - [x] UI for creating, listing, and deleting mappings.
    - [x] Display confirmed mapping evidence and unmapped changed paths.
    - [ ] Validate live Forge storage and workspace context on an installed development site.

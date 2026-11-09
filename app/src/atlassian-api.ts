@@ -1,4 +1,4 @@
-import api, { assumeTrustedRoute, route, type Response as ForgeResponse } from '@forge/api';
+import api, { route, type Response as ForgeResponse } from '@forge/api';
 import type {
   PullRequestInput,
   PullRequestOverview,
@@ -88,7 +88,7 @@ function validateDiffstatNextUrl(
   workspace: string,
   repository: string,
   commitRange: string,
-): string {
+): URL {
   let url: URL;
   try {
     url = new URL(value);
@@ -108,7 +108,32 @@ function validateDiffstatNextUrl(
     throw new Error('Bitbucket returned an unexpected changed-file pagination URL.');
   }
 
-  return url.href;
+  return url;
+}
+
+async function getRepositoryUuid(
+  workspaceId: string,
+  repositorySlug: string,
+): Promise<string> {
+  const query = new URLSearchParams({
+    q: `slug="${repositorySlug}"`,
+    pagelen: '1',
+  });
+  const payload = await readJsonResponse(
+    await api.asUser().requestBitbucket(
+      route`/2.0/repositories/${workspaceId}?${query}`,
+    ),
+    'Bitbucket repository lookup',
+  );
+  const values = Array.isArray(payload.values) ? payload.values : [];
+  const repository = values.find(
+    (entry) => isRecord(entry) && stringAt(entry, 'slug') === repositorySlug,
+  );
+  const uuid = stringAt(repository, 'uuid');
+  if (!/^\\{?[a-f0-9-]{36}\\}?$/i.test(uuid)) {
+    throw new Error('Bitbucket did not return a valid repository ID for the selected repository.');
+  }
+  return uuid;
 }
 
 function mapDiffstatFiles(payload: JsonRecord): PullRequestFile[] {
@@ -140,6 +165,8 @@ async function readAllDiffstatPages(
   workspace: string,
   repository: string,
   commitRange: string,
+  workspaceId: string,
+  repositoryId: string,
 ): Promise<{ files: PullRequestFile[]; filesTruncated: boolean }> {
   const filesByPath = new Map<string, PullRequestFile>();
   const visitedUrls = new Set<string>();
@@ -161,22 +188,23 @@ async function readAllDiffstatPages(
       return { files: [...filesByPath.values()], filesTruncated: true };
     }
 
-    const safeNextUrl = validateDiffstatNextUrl(
+    const nextUrl = validateDiffstatNextUrl(
       next,
       workspace,
       repository,
       commitRange,
     );
-    if (visitedUrls.has(safeNextUrl)) {
+    if (visitedUrls.has(nextUrl.href)) {
       throw new Error('Bitbucket returned a repeated changed-file pagination URL.');
     }
-    visitedUrls.add(safeNextUrl);
+    visitedUrls.add(nextUrl.href);
 
-    // Bitbucket's next links are generated URLs. Validate the origin and exact
-    // diffstat path above before using assumeTrustedRoute; routeFromAbsolute can
-    // reject Bitbucket's slug-based next links in Forge.
+    // Bitbucket's pagination links use workspace/repository slugs. Forge's
+    // Bitbucket proxy expects IDs, so validate the returned link and rebuild
+    // the same query against the trusted workspace and repository IDs.
+    const query = new URLSearchParams(nextUrl.searchParams);
     const nextResponse = await api.asUser().requestBitbucket(
-      assumeTrustedRoute(safeNextUrl),
+      route`/2.0/repositories/${workspaceId}/${repositoryId}/diffstat/${commitRange}?${query}`,
     );
     page = await readJsonResponse(nextResponse, 'Bitbucket changed-file list');
   }
@@ -233,9 +261,10 @@ export async function getPullRequestOverview(
   if (!workspaceId) {
     throw new Error('DiffScope could not identify the Bitbucket workspace from Forge context.');
   }
+  const repositoryId = await getRepositoryUuid(workspaceId, repository);
   const pullRequest = await readJsonResponse(
     await api.asUser().requestBitbucket(
-      route`/2.0/repositories/${workspaceId}/${repository}/pullrequests/${pullRequestId}`,
+      route`/2.0/repositories/${workspaceId}/${repositoryId}/pullrequests/${pullRequestId}`,
     ),
     'Bitbucket pull request',
   );
@@ -252,7 +281,7 @@ export async function getPullRequestOverview(
   const commitRange = `${sourceCommit}..${destinationCommit}`;
   const firstDiffstatPage = await readJsonResponse(
     await api.asUser().requestBitbucket(
-      route`/2.0/repositories/${workspaceId}/${repository}/diffstat/${commitRange}?topic=true&pagelen=500`,
+      route`/2.0/repositories/${workspaceId}/${repositoryId}/diffstat/${commitRange}?topic=true&pagelen=500`,
     ),
     'Bitbucket changed-file list',
   );
@@ -261,6 +290,8 @@ export async function getPullRequestOverview(
     workspace,
     repository,
     commitRange,
+    workspaceId,
+    repositoryId,
   );
 
   return mapPullRequest(pullRequest, files, filesTruncated);

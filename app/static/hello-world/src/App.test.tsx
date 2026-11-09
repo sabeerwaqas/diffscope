@@ -209,6 +209,8 @@ describe('DiffScope UI', () => {
     expect((await screen.findAllByText('Support checkout')).length).toBeGreaterThan(0);
     expect(screen.getAllByText('src/billing/unknown.ts').length).toBeGreaterThan(0);
     expect(screen.getByText('1 explicit mapping')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Create mapping' }));
+    expect((screen.getByRole('textbox', { name: 'Repository-relative file path' }) as HTMLInputElement).value).toBe('src/billing/unknown.ts');
     expect(screen.getByText(/Mapping coverage: 50% of returned changed files/)).toBeTruthy();
   });
 

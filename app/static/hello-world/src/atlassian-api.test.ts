@@ -11,12 +11,11 @@ vi.mock('@forge/api', () => ({
       requestBitbucket: mocks.requestBitbucket,
     }),
   },
-  route: (strings: TemplateStringsArray, ...values: string[]) =>
+  route: (strings: TemplateStringsArray, ...values: unknown[]) =>
     strings.reduce(
-      (path, segment, index) => path + segment + (values[index] ?? ''),
+      (path, segment, index) => path + segment + String(values[index] ?? ''),
       '',
     ),
-  assumeTrustedRoute: (value: string) => value,
 }));
 
 import { getPullRequestOverview } from '../../../src/atlassian-api';
@@ -40,6 +39,12 @@ function jsonResponse(payload: unknown, status = 200): ForgeResponse {
   };
 }
 
+const repositoryUuid = '{12345678-1234-1234-1234-123456789abc}';
+
+const repositoryPayload = {
+  values: [{ slug: 'repo', uuid: repositoryUuid }],
+};
+
 const pullRequestPayload = {
   id: 21,
   title: 'Update API contract',
@@ -56,16 +61,25 @@ const pullRequestPayload = {
   links: { html: { href: 'https://bitbucket.org/team/repo/pull-requests/21' } },
 };
 
+const input = {
+  workspace: 'team',
+  repository: 'repo',
+  pullRequestId: '21',
+};
+
+const context = { workspaceId: 'workspace-uuid' };
+
 beforeEach(() => {
   mocks.requestBitbucket.mockReset();
 });
 
 describe('authenticated Bitbucket API function', () => {
-  it('retrieves all changed-file pages and marks the result complete', async () => {
+  it('resolves the repository ID and retrieves every changed-file page', async () => {
     const nextUrl =
       'https://api.bitbucket.org/2.0/repositories/team/repo/diffstat/abc123456789..def123456789?page=2';
 
     mocks.requestBitbucket
+      .mockResolvedValueOnce(jsonResponse(repositoryPayload))
       .mockResolvedValueOnce(jsonResponse(pullRequestPayload))
       .mockResolvedValueOnce(jsonResponse({
         next: nextUrl,
@@ -90,11 +104,7 @@ describe('authenticated Bitbucket API function', () => {
         ],
       }));
 
-    const result = await getPullRequestOverview({
-      workspace: 'team',
-      repository: 'repo',
-      pullRequestId: '21',
-    }, { workspaceId: 'workspace-uuid' });
+    const result = await getPullRequestOverview(input, context);
 
     expect(result).toMatchObject({
       title: 'Update API contract',
@@ -118,60 +128,68 @@ describe('authenticated Bitbucket API function', () => {
     });
     expect(mocks.requestBitbucket).toHaveBeenNthCalledWith(
       1,
-      '/2.0/repositories/workspace-uuid/repo/pullrequests/21',
+      '/2.0/repositories/workspace-uuid?q=slug%3D%22repo%22&pagelen=1',
     );
     expect(mocks.requestBitbucket).toHaveBeenNthCalledWith(
       2,
-      '/2.0/repositories/workspace-uuid/repo/diffstat/abc123456789..def123456789?topic=true&pagelen=500',
+      `/2.0/repositories/workspace-uuid/${repositoryUuid}/pullrequests/21`,
     );
-    expect(mocks.requestBitbucket).toHaveBeenNthCalledWith(3, nextUrl);
+    expect(mocks.requestBitbucket).toHaveBeenNthCalledWith(
+      3,
+      `/2.0/repositories/workspace-uuid/${repositoryUuid}/diffstat/abc123456789..def123456789?topic=true&pagelen=500`,
+    );
+    expect(mocks.requestBitbucket).toHaveBeenNthCalledWith(
+      4,
+      `/2.0/repositories/workspace-uuid/${repositoryUuid}/diffstat/abc123456789..def123456789?page=2`,
+    );
   });
 
   it('rejects pagination URLs outside the expected Bitbucket diffstat resource', async () => {
     mocks.requestBitbucket
+      .mockResolvedValueOnce(jsonResponse(repositoryPayload))
       .mockResolvedValueOnce(jsonResponse(pullRequestPayload))
       .mockResolvedValueOnce(jsonResponse({
         next: 'https://attacker.example/steal-token',
         values: [],
       }));
 
-    await expect(
-      getPullRequestOverview({
-        workspace: 'team',
-        repository: 'repo',
-        pullRequestId: '21',
-      }, { workspaceId: 'workspace-uuid' }),
-    ).rejects.toThrow('Bitbucket returned an unexpected changed-file pagination URL.');
+    await expect(getPullRequestOverview(input, context)).rejects.toThrow(
+      'Bitbucket returned an unexpected changed-file pagination URL.',
+    );
 
-    expect(mocks.requestBitbucket).toHaveBeenCalledTimes(2);
+    expect(mocks.requestBitbucket).toHaveBeenCalledTimes(3);
   });
 
   it('requires the trusted workspace ID from Forge context', async () => {
-    await expect(getPullRequestOverview({
-      workspace: 'team',
-      repository: 'repo',
-      pullRequestId: '21',
-    }, {})).rejects.toThrow('could not identify the Bitbucket workspace');
+    await expect(getPullRequestOverview(input, {})).rejects.toThrow(
+      'could not identify the Bitbucket workspace',
+    );
     expect(mocks.requestBitbucket).not.toHaveBeenCalled();
   });
 
   it('reports product access failures and validates input before requests', async () => {
-    mocks.requestBitbucket.mockResolvedValueOnce(jsonResponse({}, 403));
+    mocks.requestBitbucket
+      .mockResolvedValueOnce(jsonResponse(repositoryPayload))
+      .mockResolvedValueOnce(jsonResponse({}, 403));
 
-    await expect(
-      getPullRequestOverview({
-        workspace: 'team',
-        repository: 'repo',
-        pullRequestId: '21',
-      }),
-    ).rejects.toThrow('Access to Bitbucket pull request was denied.');
-    await expect(
-      getPullRequestOverview({
-        workspace: '../other',
-        repository: 'repo',
-        pullRequestId: '21',
-      }),
-    ).rejects.toThrow('Enter a valid Bitbucket workspace slug.');
+    await expect(getPullRequestOverview(input, context)).rejects.toThrow(
+      'Access to Bitbucket pull request was denied.',
+    );
+    await expect(getPullRequestOverview({
+      ...input,
+      workspace: '../other',
+    }, context)).rejects.toThrow('Enter a valid Bitbucket workspace slug.');
+    expect(mocks.requestBitbucket).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects malformed repository IDs before requesting the pull request', async () => {
+    mocks.requestBitbucket.mockResolvedValueOnce(jsonResponse({
+      values: [{ slug: 'repo', uuid: 'not-a-uuid' }],
+    }));
+
+    await expect(getPullRequestOverview(input, context)).rejects.toThrow(
+      'valid repository ID',
+    );
     expect(mocks.requestBitbucket).toHaveBeenCalledTimes(1);
   });
 });

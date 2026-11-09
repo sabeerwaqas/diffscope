@@ -209,6 +209,7 @@ describe('DiffScope UI', () => {
     expect((await screen.findAllByText('Support checkout')).length).toBeGreaterThan(0);
     expect(screen.getAllByText('src/billing/unknown.ts').length).toBeGreaterThan(0);
     expect(screen.getByText('1 explicit mapping')).toBeTruthy();
+    expect(screen.getByText(/Mapping coverage: 50% of returned changed files/)).toBeTruthy();
   });
 
   it('keeps Jira and Confluence examples explicitly in local demo mode', async () => {
